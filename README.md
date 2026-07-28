@@ -1,4 +1,3 @@
-# simple-mobile-robot-autonomy
 
 # Simple Mobile Robot Autonomy
 
