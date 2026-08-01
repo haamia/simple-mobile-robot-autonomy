@@ -44,7 +44,8 @@ def generate_launch_description():
                 output="screen",
                 parameters=[
                     {
-                        "robot_description": robot_description
+                        "robot_description": robot_description,
+                        "use_sim_time": True,
                     }
                 ],
             )
@@ -53,7 +54,7 @@ def generate_launch_description():
     world_file = os.path.join(
     get_package_share_directory("simple_mobile_robot"),
     "worlds",
-    "empty_with_sensors.sdf",
+    "room_world.sdf",
      )
 
     gazebo = IncludeLaunchDescription(
@@ -81,6 +82,7 @@ def generate_launch_description():
           "/camera@sensor_msgs/msg/Image[gz.msgs.Image",
           "/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
           "/camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+          "/diff_drive_controller/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry",
         ],
         output="screen",
     )
@@ -123,6 +125,21 @@ def generate_launch_description():
         ],
     )
 
+    ekf_node = Node(
+      package="robot_localization",
+      executable="ekf_node",
+      name="ekf_filter_node",
+      output="screen",
+      parameters=[
+        os.path.join(
+            get_package_share_directory("simple_mobile_robot"),
+            "config",
+            "ekf.yaml"
+        ),
+        {"use_sim_time": True}
+      ],
+    )
+
     return LaunchDescription(
 
         [
@@ -136,6 +153,7 @@ def generate_launch_description():
             ),
 
             spawn_robot,
+            #ekf_node,
 
             RegisterEventHandler(
                 OnProcessExit(

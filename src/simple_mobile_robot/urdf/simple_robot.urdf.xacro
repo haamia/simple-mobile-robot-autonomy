@@ -140,6 +140,49 @@
   <dynamics damping="2.0"/>
  </joint>
 
+
+ <link name="lidar_mast">
+
+  <visual>
+    <geometry>
+      <cylinder radius="0.03" length="0.09"/>
+    </geometry>
+
+    <material name="gray">
+      <color rgba="0.6 0.6 0.6 1"/>
+    </material>
+  </visual>
+
+  <collision>
+    <geometry>
+      <cylinder radius="0.008" length="0.09"/>
+    </geometry>
+  </collision>
+
+  <inertial>
+    <mass value="0.05"/>
+
+    <origin xyz="0 0 0"/>
+
+    <inertia
+      ixx="0.00001"
+      ixy="0"
+      ixz="0"
+      iyy="0.00001"
+      iyz="0"
+      izz="0.00001"/>
+  </inertial>
+
+</link>
+
+<joint name="lidar_mast_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="lidar_mast"/>
+
+  <!-- Mast center -->
+  <origin xyz="0 0 0.095" rpy="0 0 0"/>
+</joint>
+
  <link name="lidar_link">
   <visual>
    <geometry>
@@ -162,19 +205,24 @@
       iyz="0"
       izz="0.0001"/>
   </inertial>
+  
   <collision>
    <geometry>
     <cylinder radius="${lidar_radius}" length="${lidar_height}"/>
    </geometry>
   </collision>
+    
   
  </link>
 
- <joint name="lidar_joint" type="fixed">
-  <parent link="base_link"/>
+<joint name="lidar_joint" type="fixed">
+  <parent link="lidar_mast"/>
   <child link="lidar_link"/>
-  <origin xyz="0 0 0.075" rpy="0 0 0"/>
- </joint>
+
+  <!-- LiDAR sits on top of the mast -->
+  <origin xyz="0 0 0.07" rpy="0 0 0"/>
+</joint>
+
 
  <link name="depth_camera_link">
   <visual>
@@ -223,6 +271,8 @@
             rpy="-1.5708 0 -1.5708"/>
  </joint>
 
+ 
+
  <link name="imu_link">
 
   <visual>
@@ -264,6 +314,7 @@
   <child link="imu_link"/>
   <origin xyz="-0.10 0 0.06" rpy="0 0 0"/>
  </joint>
+ 
 
  <link name="caster_swivel">
 
@@ -299,18 +350,13 @@
 
  </link>
 
- <joint name="caster_swivel_joint" type="continuous">
-
+<joint name="caster_swivel_joint" type="continuous">
     <parent link="base_link"/>
-
     <child link="caster_swivel"/>
-
     <origin xyz="-0.15 0 -0.045"/>
-
     <axis xyz="0 0 1"/>
-    <dynamics damping="2.0"/>
-
- </joint>
+    <dynamics damping="0.05" friction="0.0"/>
+</joint>
 
  <link name="caster_wheel">
 
@@ -474,24 +520,18 @@
 
 </gazebo>
 
+
 <gazebo reference="base_link">
-
-  <sensor name="imu" type="imu">
-
+  <sensor name="imu_sensor" type="imu">
     <always_on>true</always_on>
-
     <update_rate>100</update_rate>
-
     <visualize>true</visualize>
-
     <topic>/imu</topic>
-
     <enable_metrics>true</enable_metrics>
-
   </sensor>
-
+  <kp>1000000</kp>
+  <kd>100</kd>
 </gazebo>
-
 
 <gazebo reference="depth_camera_link">
 
@@ -529,11 +569,11 @@
 
 <gazebo reference="left_wheel">
 
-  <mu1>1</mu1>
-  <mu2>1</mu2>
+  <mu1>10.0</mu1>
+  <mu2>10.0</mu2>
 
-  <kp>1000000</kp>
-  <kd>100</kd>
+  <kp>100000</kp>
+  <kd>10</kd>
 
   <fdir1>0 1 0</fdir1>
 
@@ -541,35 +581,23 @@
 
 <gazebo reference="right_wheel">
 
-  <mu1>1</mu1>
-  <mu2>1</mu2>
+  <mu1>10.0</mu1>
+  <mu2>10.0</mu2>
 
-  <kp>1000000</kp>
-  <kd>100</kd>
+  <kp>100000</kp>
+  <kd>10</kd>
 
   <fdir1>0 1 0</fdir1>
-
-</gazebo>
-
-<gazebo reference="base_link">
-
-    <kp>1000000</kp>
-    <kd>100</kd>
 
 </gazebo>
 
 
 
 <gazebo reference="caster_wheel">
-
-    <mu1>0.2</mu1>
-
-    <mu2>0.2</mu2>
-
+    <mu1>0.01</mu1>
+    <mu2>0.01</mu2>
     <kp>100000</kp>
-
     <kd>10</kd>
-
 </gazebo>
 
 </robot>
