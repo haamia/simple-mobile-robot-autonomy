@@ -1,208 +1,102 @@
-#!/usr/bin/env python3
-
-import math
+import sys
+import tty
+import termios
 
 import rclpy
 from rclpy.node import Node
-
-from nav_msgs.msg import Odometry
 from geometry_msgs.msg import TwistStamped
 
 
-CMD_TOPIC = "/diff_drive_controller/cmd_vel"
-ODOM_TOPIC = "/diff_drive_controller/odom"
+KEYS = {
+    'w': ( 0.20,  0.00),   # forward
+    's': (-0.20,  0.00),   # backward
+    'a': ( 0.00,  0.50),   # turn left
+    'd': ( 0.00, -0.50),   # turn right
+    'q': ( 0.20,  0.50),   # forward + left
+    'e': ( 0.20, -0.50),   # forward + right
+    ' ': ( 0.00,  0.00),   # stop
+}
 
-LINEAR_SPEED = 0.18
-TURN_SPEED = 0.20
+BANNER = """
+Teleop Keyboard — TwistStamped
+-------------------------------
+   q    w    e
+   a    s    d
 
-FORWARD_DISTANCE = 2.0      # meters
-TURN_ANGLE = math.radians(90)
+w/s : forward / backward
+a/d : turn left / right
+q/e : forward + turn
+SPACE : stop
+CTRL+C : quit
+-------------------------------
+"""
 
 
-class MoveThenTurn(Node):
+def get_key(settings):
+    tty.setraw(sys.stdin.fileno())
+    key = sys.stdin.read(1)
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+    return key
+
+
+class TeleopKeyboard(Node):
 
     def __init__(self):
+        super().__init__("teleop_keyboard")
 
-        super().__init__("move_then_turn")
-
-        self.pub = self.create_publisher(
+        self.cmd_pub = self.create_publisher(
             TwistStamped,
-            CMD_TOPIC,
+            "/diff_drive_controller/cmd_vel",
             10
         )
 
-        self.sub = self.create_subscription(
-            Odometry,
-            ODOM_TOPIC,
-            self.odom_callback,
-            10
-        )
+        self.LINEAR_SPEED  = 0.20
+        self.TURN_SPEED    = 0.50
 
-        self.started = False
-
-        self.start_x = 0.0
-        self.start_y = 0.0
-        self.start_yaw = 0.0
-
-        self.prev_yaw = 0.0
-        self.total_rotation = 0.0
-
-        self.state = "FORWARD"
-
-        self.get_logger().info("Waiting for odometry...")
-
-    # -------------------------------------------------
-
-    def quaternion_to_yaw(self, q):
-
-        siny = 2 * (q.w*q.z + q.x*q.y)
-        cosy = 1 - 2 * (q.y*q.y + q.z*q.z)
-
-        return math.atan2(siny, cosy)
-
-    # -------------------------------------------------
-
-    def normalize(self, a):
-
-        while a > math.pi:
-            a -= 2*math.pi
-
-        while a < -math.pi:
-            a += 2*math.pi
-
-        return a
-
-    # -------------------------------------------------
+        self.get_logger().info("Teleop Keyboard Node Started")
 
     def publish(self, linear, angular):
+        cmd = TwistStamped()
+        cmd.header.stamp    = self.get_clock().now().to_msg()
+        cmd.header.frame_id = "base_link"
+        cmd.twist.linear.x  = linear
+        cmd.twist.angular.z = angular
+        self.cmd_pub.publish(cmd)
+        print(f"Linear: {linear:.2f}   Angular: {angular:.2f}")
 
-        msg = TwistStamped()
-
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "base_link"
-
-        msg.twist.linear.x = linear
-        msg.twist.angular.z = angular
-
-        self.pub.publish(msg)
-
-    # -------------------------------------------------
-
-    def odom_callback(self, msg):
-
-        x = msg.pose.pose.position.x
-        y = msg.pose.pose.position.y
-
-        yaw = self.quaternion_to_yaw(
-            msg.pose.pose.orientation
-        )
-
-        if not self.started:
-
-            self.started = True
-
-            self.start_x = x
-            self.start_y = y
-            self.start_yaw = yaw
-
-            self.prev_yaw = yaw
-
-            self.get_logger().info("Started")
-
-            return
-
-        # -----------------------------
-        # Move Forward
-        # -----------------------------
-
-        if self.state == "FORWARD":
-
-            dist = math.sqrt(
-                (x-self.start_x)**2 +
-                (y-self.start_y)**2
-            )
-
-            print(f"Distance = {dist:.2f}")
-
-            if dist >= FORWARD_DISTANCE:
-
-                self.publish(0.0,0.0)
-
-                self.state = "TURN"
-
-                self.prev_yaw = yaw
-                self.total_rotation = 0.0
-
-                self.get_logger().info("Starting 90 degree turn")
-
-                return
-
-            self.publish(
-                LINEAR_SPEED,
-                0.0
-            )
-
-            return
-
-        # -----------------------------
-        # Turn
-        # -----------------------------
-
-        if self.state == "TURN":
-
-            delta = self.normalize(
-                yaw-self.prev_yaw
-            )
-
-            self.total_rotation += abs(delta)
-
-            self.prev_yaw = yaw
-
-            print(
-                f"Rotation = {math.degrees(self.total_rotation):.1f}"
-            )
-
-            if self.total_rotation >= TURN_ANGLE:
-
-                self.publish(
-                    0.0,
-                    0.0
-                )
-
-                self.state = "DONE"
-
-                self.get_logger().info("Finished")
-
-                return
-
-            self.publish(
-                0.0,
-                TURN_SPEED
-            )
-
-            return
-
-        self.publish(0.0,0.0)
+    def stop(self):
+        self.publish(0.0, 0.0)
 
 
-def main():
+def main(args=None):
+    rclpy.init(args=args)
+    node = TeleopKeyboard()
 
-    rclpy.init()
+    settings = termios.tcgetattr(sys.stdin)
 
-    node = MoveThenTurn()
+    print(BANNER)
 
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            key = get_key(settings)
 
-    except KeyboardInterrupt:
-        pass
+            if key == '\x03':   # CTRL+C
+                break
+
+            if key in KEYS:
+                linear, angular = KEYS[key]
+                node.publish(linear, angular)
+            else:
+                # unknown key — stop
+                node.publish(0.0, 0.0)
+
+    except Exception as e:
+        print(f"Error: {e}")
 
     finally:
-
-        node.publish(0.0,0.0)
-
+        node.stop()
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
         node.destroy_node()
-
         rclpy.shutdown()
 
 
