@@ -63,7 +63,7 @@ The robot explores the simulated environment while SLAM Toolbox continuously pro
 
 ## RViz2 Visualization
 
-<p align="center"> <img src="images/rviz2.png" width="700"> </p>
+<p align="center"> <img src="images/rviz2.png" width="400"> </p>
 
 RViz2 is used to visualize the robot model, generated map, LiDAR data, TF frames, and other ROS 2 information during the mapping process.
 
