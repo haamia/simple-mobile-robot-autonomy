@@ -86,7 +86,7 @@ map
 
 ## Final SLAM Map
 
-<p align="center"> <img src="images/final_slam_map.png" width="700"> </p>
+<p align="center"> <img src="images/final_slam_map.png" width="400"> </p>
 
 The final occupancy-grid map generated using SLAM Toolbox is saved for use in future localization and autonomous navigation stages.
 
